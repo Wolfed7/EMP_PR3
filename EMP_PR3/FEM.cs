@@ -82,6 +82,7 @@ public class FEM
          }
       }
 
+      list = list.Select(childlist => childlist.Order().ToHashSet()).ToList();
       int offDiagonalElementsCount = list.Sum(childList => childList.Count);
 
       _globalMatrix = new(2 * _mesh.Nodes.Length, offDiagonalElementsCount);

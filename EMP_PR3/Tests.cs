@@ -30,9 +30,9 @@ public class Test1 : Test
    public Test1(Mesh3D mesh) : base(mesh) { }
 
    public override double Us(Point3D point) 
-      => point.X + point.Y + point.Z;
+      => 2 * point.X + point.Y / 2 + 5 * point.Z;
    public override double Uc(Point3D point) 
-      => point.Z - point.X - point.Y;
+      => point.Z - 1.5 * point.X - point.Y;
    protected override double DivGradUs(Point3D point)
       => 0;
    protected override double DivGradUc(Point3D point)
