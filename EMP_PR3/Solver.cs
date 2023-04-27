@@ -120,7 +120,7 @@ public class LOS : Solver
 
       double discrepancy = r * r;
 
-      for (int i = 1; i <= _maxIters & discrepancy > _eps; i++)
+      for (int i = 1; i <= _maxIters && discrepancy > _eps; i++)
       {
          alpha = (p * r) / (p * p);
          _solution += alpha * z;
@@ -187,10 +187,10 @@ public class LOSWithLU : Solver
 
       Stopwatch sw = Stopwatch.StartNew();
 
-      double nevyaz = r * r;
+      double discrepancy = r * r;
 
 
-      for (int i = 1; i <= _maxIters & nevyaz > _eps; i++)
+      for (int i = 1; i <= _maxIters && discrepancy > _eps; i++)
       {
          alpha = (p * r) / (p * p);
          _solution += alpha * z;
@@ -203,7 +203,7 @@ public class LOSWithLU : Solver
          z = BackSub(matrixLU, r) + beta * z;
          p = tmp + beta * p;
 
-         nevyaz = r * r;
+         discrepancy = r * r;
       }
 
       sw.Stop();
@@ -288,19 +288,54 @@ public class LOSWithLU : Solver
 
 }
 
-//public class BCGSTABSolver : Solver
+//public class BCG : Solver
 //{
 //   public override Vector Solve()
 //   {
-//      solution = new(vector.Size);
-//      Vector.Copy(vector, solution);
+//      //_solution = new(_vector.Size);
+//      //Vector.Copy(_vector, _solution);
 
-//      SparseMatrix matrixLU = new(matrix.Size, matrix._ja.Length);
-//      SparseMatrix.Copy(matrix, matrixLU);
+//      //SparseMatrix matrixLU = new(_matrix.Size, _matrix._ja.Length);
+//      //SparseMatrix.Copy(_matrix, matrixLU);
 
-//      LU(matrixLU);
+//      //LU(matrixLU);
 
-//      return solution;
+//      //return _solution;
+
+
+//      _solution = new(_vector.Size);
+//      Vector.Copy(_vector, _solution);
+
+//      Vector r = _vector - _matrix * _solution;
+
+//      Vector p = new(r.Size);
+//      Vector z = new(r.Size);
+//      Vector s = new(r.Size);
+
+//      Vector.Copy(r, p);
+//      Vector.Copy(r, z);
+//      Vector.Copy(r, s);
+
+
+//      Stopwatch sw = Stopwatch.StartNew();
+
+//      double discrepancy = r * r;
+
+//      for (int i = 1; i <= _maxIters && discrepancy > _eps; i++)
+//      {
+//         var Az = (_matrix * z);
+//         double alpha = (p * r) / (s * Az);
+
+//         _solution = _solution + alpha * z;
+//         r = r - alpha * Az;
+//         p = p - 
+
+//      }
+
+//      sw.Stop();
+//      SolveTime = sw.ElapsedMilliseconds;
+
+//      return _solution;
 //   }
 
 //   protected static void LU(SparseMatrix Matrix)
