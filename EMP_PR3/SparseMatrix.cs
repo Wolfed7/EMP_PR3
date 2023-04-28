@@ -37,6 +37,24 @@ public class SparseMatrix
       return product;
    }
 
+   public static Vector TransposedMatrixMult(SparseMatrix matrix, Vector vector)
+   {
+      Vector product = new(vector.Size);
+
+      for (int i = 0; i < vector.Size; i++)
+      {
+         product[i] += matrix._di[i] * vector[i];
+
+         for (int j = matrix._ia[i]; j < matrix._ia[i + 1]; j++)
+         {
+            product[i] += matrix._au[j] * vector[matrix._ja[j]];
+            product[matrix._ja[j]] += matrix._al[j] * vector[i];
+         }
+      }
+
+      return product;
+   }
+
    public void Clear()
    {
       for (int i = 0; i < Size; i++)

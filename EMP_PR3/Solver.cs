@@ -176,11 +176,11 @@ public class LOSWithLU : Solver
 
       //matrixLU = matrixLU.ConvertToProfile();
 
-      LU(matrixLU);
+      PartitialLU(matrixLU);
 
-      Vector r = DirElim(matrixLU, _vector - _matrix * _solution);
-      Vector z = BackSub(matrixLU, r);
-      Vector p = DirElim(matrixLU, _matrix * z);
+      Vector r = Forward(matrixLU, _vector - _matrix * _solution);
+      Vector z = Backward(matrixLU, r);
+      Vector p = Forward(matrixLU, _matrix * z);
       Vector tmp;
       double alpha;
       double beta;
@@ -197,10 +197,10 @@ public class LOSWithLU : Solver
 
          r -= alpha * p;
 
-         tmp = DirElim(matrixLU, _matrix * BackSub(matrixLU, r));
+         tmp = Forward(matrixLU, _matrix * Backward(matrixLU, r));
          beta = -(p * tmp) / (p * p);
 
-         z = BackSub(matrixLU, r) + beta * z;
+         z = Backward(matrixLU, r) + beta * z;
          p = tmp + beta * p;
 
          discrepancy = r * r;
@@ -212,7 +212,7 @@ public class LOSWithLU : Solver
       return _solution;
    }
 
-   protected static void LU(SparseMatrix Matrix)
+   protected static void PartitialLU(SparseMatrix Matrix)
    {
       for (int i = 0; i < Matrix.Size; i++)
       {
@@ -252,9 +252,9 @@ public class LOSWithLU : Solver
       }
    }
 
-   protected static Vector DirElim(SparseMatrix Matrix, Vector b)
+   protected static Vector Forward(SparseMatrix Matrix, Vector b)
    {
-      Vector result = new Vector(b.Size);
+      var result = new Vector(b.Size);
       Vector.Copy(b, result);
 
       for (int i = 0; i < Matrix.Size; i++)
@@ -270,7 +270,7 @@ public class LOSWithLU : Solver
       return result;
    }
 
-   protected static Vector BackSub(SparseMatrix Matrix, Vector b)
+   protected static Vector Backward(SparseMatrix Matrix, Vector b)
    {
       var result = new Vector(b.Size);
       Vector.Copy(b, result);
@@ -285,130 +285,189 @@ public class LOSWithLU : Solver
 
       return result;
    }
-
 }
 
-//public class BCG : Solver
-//{
-//   public override Vector Solve()
-//   {
-//      //_solution = new(_vector.Size);
-//      //Vector.Copy(_vector, _solution);
+public class BCG : Solver
+{
+   public override Vector Solve()
+   {
+      _solution = new(_vector.Size);
 
-//      //SparseMatrix matrixLU = new(_matrix.Size, _matrix._ja.Length);
-//      //SparseMatrix.Copy(_matrix, matrixLU);
+      Vector residual = _vector - _matrix * _solution;
 
-//      //LU(matrixLU);
+      Vector p = new(residual.Size);
+      Vector z = new(residual.Size);
+      Vector s = new(residual.Size);
 
-//      //return _solution;
-
-
-//      _solution = new(_vector.Size);
-//      Vector.Copy(_vector, _solution);
-
-//      Vector r = _vector - _matrix * _solution;
-
-//      Vector p = new(r.Size);
-//      Vector z = new(r.Size);
-//      Vector s = new(r.Size);
-
-//      Vector.Copy(r, p);
-//      Vector.Copy(r, z);
-//      Vector.Copy(r, s);
+      Vector.Copy(residual, p);
+      Vector.Copy(residual, z);
+      Vector.Copy(residual, s);
 
 
-//      Stopwatch sw = Stopwatch.StartNew();
+      Stopwatch sw = Stopwatch.StartNew();
 
-//      double discrepancy = r * r;
+      double vecNorm = _vector.Norm();
+      double discrepancy = 1;
+      double prPrev = p * residual;
 
-//      for (int i = 1; i <= _maxIters && discrepancy > _eps; i++)
-//      {
-//         var Az = (_matrix * z);
-//         double alpha = (p * r) / (s * Az);
+      for (int i = 1; i <= _maxIters && discrepancy > _eps; i++)
+      {
+         var Az = (_matrix * z);
+         double alpha = prPrev / (s * Az);
 
-//         _solution = _solution + alpha * z;
-//         r = r - alpha * Az;
-//         p = p - 
+         _solution = _solution + alpha * z;
+         residual = residual - alpha * Az;
+         p = p - alpha * SparseMatrix.TransposedMatrixMult(_matrix, s);
 
-//      }
+         double pr = p * residual;
+         double beta = pr / prPrev;
+         prPrev = pr;
 
-//      sw.Stop();
-//      SolveTime = sw.ElapsedMilliseconds;
+         z = residual + beta * z;
+         s = p + beta * s;
 
-//      return _solution;
-//   }
+         discrepancy = residual.Norm() / vecNorm;
+      }
 
-//   protected static void LU(SparseMatrix Matrix)
-//   {
-//      for (int i = 0; i < Matrix.Size; i++)
-//      {
+      sw.Stop();
+      SolveTime = sw.ElapsedMilliseconds;
 
-//         for (int j = Matrix._ia[i]; j < Matrix._ia[i + 1]; j++)
-//         {
-//            int jCol = Matrix._ja[j];
-//            int jk = Matrix._ia[jCol];
-//            int k = Matrix._ia[i];
+      return _solution;
+   }
+}
 
-//            int sdvig = Matrix._ja[Matrix._ia[i]] - Matrix._ja[Matrix._ia[jCol]];
+public class BCGWithLU : Solver
+{
+   public override Vector Solve()
+   {
+      SparseMatrix reMatrixLU = new(_matrix.Size, _matrix._ja.Length);
+      SparseMatrix.Copy(_matrix, reMatrixLU);
 
-//            if (sdvig > 0)
-//               jk += sdvig;
-//            else
-//               k -= sdvig;
+      PartitialLU(reMatrixLU);
+      var reVector = Forward(reMatrixLU, _vector);
 
-//            double sumL = 0.0;
-//            double sumU = 0.0;
 
-//            for (; k < j && jk < Matrix._ia[jCol + 1]; k++, jk++)
-//            {
-//               sumL += Matrix._al[k] * Matrix._au[jk];
-//               sumU += Matrix._au[k] * Matrix._al[jk];
-//            }
+      _solution = new(_vector.Size);
+      Vector residual = reVector - Forward(reMatrixLU, _matrix * Backward(reMatrixLU, _solution));
+      //Vector residual = _vector - _matrix * _solution;
 
-//            Matrix._al[j] -= sumL;
-//            Matrix._au[j] -= sumU;
-//            Matrix._au[j] /= Matrix._di[jCol];
-//         }
+      Vector p = new(residual.Size);
+      Vector z = new(residual.Size);
+      Vector s = new(residual.Size);
 
-//         double sumD = 0.0;
-//         for (int j = Matrix._ia[i]; j < Matrix._ia[i + 1]; j++)
-//            sumD += Matrix._al[j] * Matrix._au[j];
+      Vector.Copy(residual, p);
+      Vector.Copy(residual, z);
+      Vector.Copy(residual, s);
 
-//         Matrix._di[i] -= sumD;
-//      }
-//   }
+      Stopwatch sw = Stopwatch.StartNew();
 
-//   protected static Vector DirElim(SparseMatrix Matrix, Vector b)
-//   {
-//      Vector result = new Vector(b.Size);
-//      Vector.Copy(b, result);
+      //double vecNorm = _vector.Norm();
+      double vecNorm = reVector.Norm();
+      double discrepancy = 1;
+      double prPrev = p * residual;
 
-//      for (int i = 0; i < Matrix.Size; i++)
-//      {
-//         for (int j = Matrix._ia[i]; j < Matrix._ia[i + 1]; j++)
-//         {
-//            result[i] -= Matrix._al[j] * result[Matrix._ja[j]];
-//         }
+      for (int i = 1; i <= _maxIters && discrepancy > _eps; i++)
+      {
+         var L_AU_z = Forward(reMatrixLU, _matrix * Backward(reMatrixLU, z));
+         double alpha = prPrev / (s * L_AU_z);
 
-//         result[i] /= Matrix._di[i];
-//      }
+         _solution = _solution + alpha * z;
+         residual = residual - alpha * L_AU_z;
 
-//      return result;
-//   }
+         //var L_ATU_s = SparseMatrix.TransposedMatrixMult(_matrix, s);
+         //var L_ATU_s = Backward(reMatrixLU, _matrix * Forward(reMatrixLU, s));
+         var L_ATU_s = Forward(reMatrixLU, SparseMatrix.TransposedMatrixMult(_matrix, Backward(reMatrixLU, s)));
+         p = p - alpha * L_ATU_s;
 
-//   protected static Vector BackSub(SparseMatrix Matrix, Vector b)
-//   {
-//      Vector result = new Vector(b.Size);
-//      Vector.Copy(b, result);
+         double pr = p * residual;
+         double beta = pr / prPrev;
+         prPrev = pr;
 
-//      for (int i = Matrix.Size - 1; i >= 0; i--)
-//      {
-//         for (int j = Matrix._ia[i + 1] - 1; j >= Matrix._ia[i]; j--)
-//         {
-//            result[Matrix._ja[j]] -= Matrix._au[j] * result[i];
-//         }
-//      }
-//      return result;
-//   }
+         z = residual + beta * z;
+         s = p + beta * s;
 
-//}
+         discrepancy = residual.Norm() / vecNorm;
+      }
+
+      _solution = Backward(reMatrixLU, _solution);
+
+      sw.Stop();
+      SolveTime = sw.ElapsedMilliseconds;
+
+      return _solution;
+   }
+
+   protected static void PartitialLU(SparseMatrix Matrix)
+   {
+      for (int i = 0; i < Matrix.Size; i++)
+      {
+
+         for (int j = Matrix._ia[i]; j < Matrix._ia[i + 1]; j++)
+         {
+            int jCol = Matrix._ja[j];
+            int jk = Matrix._ia[jCol];
+            int k = Matrix._ia[i];
+
+            int sdvig = Matrix._ja[Matrix._ia[i]] - Matrix._ja[Matrix._ia[jCol]];
+
+            if (sdvig > 0)
+               jk += sdvig;
+            else
+               k -= sdvig;
+
+            double sumL = 0.0;
+            double sumU = 0.0;
+
+            for (; k < j && jk < Matrix._ia[jCol + 1]; k++, jk++)
+            {
+               sumL += Matrix._al[k] * Matrix._au[jk];
+               sumU += Matrix._au[k] * Matrix._al[jk];
+            }
+
+            Matrix._al[j] -= sumL;
+            Matrix._au[j] -= sumU;
+            Matrix._au[j] /= Matrix._di[jCol];
+         }
+
+         double sumD = 0.0;
+         for (int j = Matrix._ia[i]; j < Matrix._ia[i + 1]; j++)
+            sumD += Matrix._al[j] * Matrix._au[j];
+
+         Matrix._di[i] -= sumD;
+      }
+   }
+
+   protected static Vector Forward(SparseMatrix Matrix, Vector b)
+   {
+      var result = new Vector(b.Size);
+      Vector.Copy(b, result);
+
+      for (int i = 0; i < Matrix.Size; i++)
+      {
+         for (int j = Matrix._ia[i]; j < Matrix._ia[i + 1]; j++)
+         {
+            result[i] -= Matrix._al[j] * result[Matrix._ja[j]];
+         }
+
+         result[i] /= Matrix._di[i];
+      }
+
+      return result;
+   }
+
+   protected static Vector Backward(SparseMatrix Matrix, Vector b)
+   {
+      var result = new Vector(b.Size);
+      Vector.Copy(b, result);
+
+      for (int i = Matrix.Size - 1; i >= 0; i--)
+      {
+         for (int j = Matrix._ia[i + 1] - 1; j >= Matrix._ia[i]; j--)
+         {
+            result[Matrix._ja[j]] -= Matrix._au[j] * result[i];
+         }
+      }
+
+      return result;
+   }
+}

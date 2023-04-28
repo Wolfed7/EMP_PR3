@@ -294,15 +294,23 @@ public class FEM
             inaccuracy[i] = exactSolution[i] - _solution[i];
       }
 
-      sw.WriteLine("Относительная погрешность U");
-      sw.WriteLine($"{inaccuracy.Norm() / exactSolution.Norm()}");
-      sw.WriteLine("Относительная погрешность Us");
-      sw.WriteLine($"{inaccuracySin.Norm() / exactSolution.Norm()}");
-      sw.WriteLine("Относительная погрешность Uc");
-      sw.WriteLine($"{inaccuracyCos.Norm() / exactSolution.Norm()}");
-      sw.WriteLine("Время");
-      sw.WriteLine($"{_slae.SolveTime / 1000.0} сек.");
+      //sw.WriteLine("Относительная погрешность U");
+      //sw.WriteLine($"{inaccuracy.Norm() / exactSolution.Norm()}");
+      //sw.WriteLine("Относительная погрешность Us");
+      //sw.WriteLine($"{inaccuracySin.Norm() / exactSolution.Norm()}");
+      //sw.WriteLine("Относительная погрешность Uc");
+      //sw.WriteLine($"{inaccuracyCos.Norm() / exactSolution.Norm()}");
+      //sw.WriteLine("Время");
+      //sw.WriteLine($"{_slae.SolveTime / 1000.0} сек.");
+      //sw.WriteLine();
+
+
+      sw.Write($"{_slae.SolveTime / 1000.0} ");
+      sw.Write($"{inaccuracy.Norm() / exactSolution.Norm()} ");
+      sw.Write($"{inaccuracySin.Norm() / exactSolution.Norm()} ");
+      sw.Write($"{inaccuracyCos.Norm() / exactSolution.Norm()} ");
       sw.WriteLine();
+
 
       Console.WriteLine($"{_slae.SolveTime / 1000.0} сек.");
    }
